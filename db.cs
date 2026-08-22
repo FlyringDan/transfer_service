@@ -10,6 +10,7 @@ public class ApplicationContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<Transfer> Transfers => Set<Transfer>();
 }
 
 public class User
@@ -17,7 +18,7 @@ public class User
     public int Id { get; set; }
     public string? giud { get; set; }
     [Range(0, int.MaxValue)]
-    public int balance { get; set; }
+    public decimal balance { get; set; }
 }
 
 
@@ -27,5 +28,5 @@ public class Transfer
     public string FromUserId { get; set; } = string.Empty;
     public string ToUserId { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string idempotencyKey { get; set; } = string.Empty;
+    public string IdempotencyKey { get; set; } = string.Empty;
 }

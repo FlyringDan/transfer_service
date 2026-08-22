@@ -27,7 +27,10 @@ api.MapPost("/addUser", async (
     ApplicationContext db, 
     CreateUserRequest request) =>
 {
-    User user = new User { giud = Guid.NewGuid().ToString(), balance = request.Balance };
+    if (request.balance < 0)
+        return Results.BadRequest("Баланс не может быть отрицательным");
+
+    User user = new User { giud = Guid.NewGuid().ToString(), balance = request.balance };
     
     db.Users.Add(user);
     await db.SaveChangesAsync();
@@ -48,26 +51,61 @@ api.MapPost("/transfers", async (
     TransferRequest request
 ) =>
 {
+    if (request.amount <= 0)
+        return Results.BadRequest("Сумма перевода должна быть положительной");
+
+    var fromUserId = await db.Users.FirstOrDefaultAsync(u => u.giud == request.fromUserId);
+    var toUserId = await db.Users.FirstOrDefaultAsync(u => u.giud == request.toUserId);
+
+    if (fromUserId == null) return Results.NotFound("Пользователя отправителя не существует");
+    if (toUserId == null) return Results.NotFound("Пользователя получателя не существует");
+    if (request.fromUserId == request.toUserId) return Results.BadRequest("Нельзя переводить деньги самому себе");
+    
+    // Добавить провернку на idempotencyKey
+    if (fromUserId.balance < request.amount)
+        return Results.BadRequest("У пользователя не хватает денег для переревода");
+    else {
+        fromUserId.balance -= request.amount;
+        toUserId.balance += request.amount;
+
+        var transfer = new Transfer
+        {
+            FromUserId = request.fromUserId,
+            ToUserId = request.toUserId,
+            Amount = request.amount,
+            IdempotencyKey = request.idempotencyKey
+        };
+        db.Transfers.Add(transfer);
+
+        await db.SaveChangesAsync();
+        return Results.Ok("Перевод успешно выполнен");
+    }
     
 })
 .WithOpenApi();
 
 
 // Информаци о переводе 
-api.MapGet("/transfers/{id}", () =>
+api.MapGet("/transfers/{id}", async(
+    int id,
+    ApplicationContext db
+) =>
 {
-    return 2;
+    var transfer = await db.Transfers.FindAsync(id);
+    if (transfer == null) return Results.NotFound("нет такого перевода");
+    else 
+        return Results.Ok(transfer);
 })
 .WithOpenApi();
 
 
 // Получение баналанса
 api.MapGet("/users/{id}/balance", async (
-    string guid,
+    int id,
     ApplicationContext db
 ) =>
 {
-    var user = await db.Users.FirstOrDefaultAsync(u => u.giud == guid);
+    var user = await db.Users.FindAsync(id);
 
     if (user == null) 
         return Results.NotFound("No such user"); 
@@ -79,5 +117,5 @@ api.MapGet("/users/{id}/balance", async (
 app.Run();
 
 
-record CreateUserRequest(int Balance);
+record CreateUserRequest(int balance);
 record TransferRequest(string fromUserId, string toUserId, decimal amount, string idempotencyKey);
