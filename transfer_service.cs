@@ -51,17 +51,30 @@ api.MapPost("/transfers", async (
     TransferRequest request
 ) =>
 {
+    if (string.IsNullOrWhiteSpace(request.fromUserId))
+        return Results.BadRequest("Guid отправителя обязателен");
+
+    if (string.IsNullOrWhiteSpace(request.toUserId))
+        return Results.BadRequest("Guid получателя обязателен");
+
+    if (string.IsNullOrWhiteSpace(request.idempotencyKey))
+        return Results.BadRequest("IdempotencyKey обязателен");
+
+    if (request.fromUserId == request.toUserId)
+        return Results.BadRequest("Нельзя переводить деньги самому себе");
+
     if (request.amount <= 0)
         return Results.BadRequest("Сумма перевода должна быть положительной");
+
+    var oldTransfer = await db.Transfers.FirstOrDefaultAsync(t => t.IdempotencyKey == request.idempotencyKey);
+    if (oldTransfer != null)
+        return Results.Ok(oldTransfer);
 
     var fromUserId = await db.Users.FirstOrDefaultAsync(u => u.giud == request.fromUserId);
     var toUserId = await db.Users.FirstOrDefaultAsync(u => u.giud == request.toUserId);
 
-    if (fromUserId == null) return Results.NotFound("Пользователя отправителя не существует");
-    if (toUserId == null) return Results.NotFound("Пользователя получателя не существует");
-    if (request.fromUserId == request.toUserId) return Results.BadRequest("Нельзя переводить деньги самому себе");
-    
-    // Добавить провернку на idempotencyKey
+    if (fromUserId == null) return Results.NotFound("Отправитель не существует");
+    if (toUserId == null) return Results.NotFound("Получатель не существует");
     if (fromUserId.balance < request.amount)
         return Results.BadRequest("У пользователя не хватает денег для переревода");
     else {
@@ -108,7 +121,7 @@ api.MapGet("/users/{id}/balance", async (
     var user = await db.Users.FindAsync(id);
 
     if (user == null) 
-        return Results.NotFound("No such user"); 
+        return Results.NotFound("Нет такого пользователя"); 
     else 
         return Results.Ok(user.balance);
 }).WithOpenApi();

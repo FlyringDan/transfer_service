@@ -11,6 +11,23 @@ public class ApplicationContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Transfer>()
+            .HasIndex(transfer => transfer.IdempotencyKey)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .ToTable(table => table.HasCheckConstraint(
+                "CK_User_Balance_NonNegative",
+                "\"balance\" >= 0"));
+
+        modelBuilder.Entity<Transfer>()
+            .ToTable(table => table.HasCheckConstraint(
+                "CK_Transfer_Amount_Positive",
+                "\"Amount\" > 0"));
+    }
 }
 
 public class User
