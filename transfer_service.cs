@@ -12,6 +12,16 @@ builder.Services.AddDbContext<ApplicationContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider
+        .GetRequiredService<ApplicationContext>();
+
+    await db.Database.MigrateAsync();
+}
+
+
 var api = app.MapGroup("/api");
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
