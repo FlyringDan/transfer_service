@@ -29,13 +29,13 @@ api.MapPost("/addUser", async (
 {
     if (request.balance < 0)
         return Results.BadRequest("Баланс не может быть отрицательным");
-
-    User user = new User { giud = Guid.NewGuid().ToString(), balance = request.balance };
+    var guid = Guid.NewGuid().ToString();
+    User user = new User { giud = guid, balance = request.balance };
     
     db.Users.Add(user);
     await db.SaveChangesAsync();
     
-    var users = await db.Users.ToListAsync();
+    var users = await db.Users.FirstOrDefaultAsync(u => u.giud == guid);
     return Results.Ok(users);
 });
 
@@ -91,7 +91,7 @@ api.MapPost("/transfers", async (
         db.Transfers.Add(transfer);
 
         await db.SaveChangesAsync();
-        return Results.Ok("Перевод успешно выполнен");
+        return Results.Ok(transfer);
     }
     
 })
