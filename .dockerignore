@@ -1,6 +1,5 @@
 TransferService.Tests/
 .vscode/
 bin/
-Migrations/
 obj/
 Properties/
